@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gym Progress Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0f;
+    --surface: #181819;
+    --surface2: #202022;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0efe8;
+    --muted: #888780;
+    --accent: #378ADD;
+    --accent2: #1D9E75;
+    --accent3: #D85A30;
+    --accent4: #7F77DD;
+    --accent5: #BA7517;
+    --font: 'DM Sans', system-ui, sans-serif;
+    --mono: 'DM Mono', monospace;
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  .app { max-width: 900px; margin: 0 auto; }
+
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .header-left h1 {
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .header-left p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  .sync-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-family: var(--font);
+    font-weight: 500;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.01em;
+  }
+
+  .sync-btn:hover { opacity: 0.88; }
+  .sync-btn:active { transform: scale(0.97); }
+  .sync-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .sync-btn .icon { width: 15px; height: 15px; }
+
+  .status-bar {
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+    min-height: 18px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-bar.loading { color: var(--accent); }
+  .status-bar.error { color: #E24B4A; }
+  .status-bar.success { color: var(--accent2); }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 2rem;
+  }
+
+  .metric {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+
+  .metric-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  .metric-value {
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+
+  .metric-value.small { font-size: 16px; padding-top: 6px; }
+
+  .section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+  }
+
+  .tab {
+    padding: 5px 13px;
+    font-size: 12px;
+    font-family: var(--font);
+    font-weight: 500;
+    border: 0.5px solid var(--border2);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tab:hover { border-color: rgba(255,255,255,0.25); color: var(--text); }
+
+  .tab.active {
+    background: var(--text);
+    color: var(--bg);
+    border-color: transparent;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 2rem;
+  }
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .chart-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .chart-subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .pr-tag {
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--mono);
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: rgba(29,158,117,0.15);
+    color: var(--accent2);
+    border: 0.5px solid rgba(29,158,117,0.3);
+  }
+
+  .chart-wrap { position: relative; width: 100%; height: 280px; }
+
+  .log-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+    margin-bottom: 2rem;
+  }
+
+  .log-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .log-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .log-card-title { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  .day-badge {
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--mono);
+    padding: 2px 8px;
+    border-radius: 5px;
+    background: var(--surface2);
+    color: var(--muted);
+  }
+
+  .log-card-sub { font-size: 12px; color: var(--muted); }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--muted);
+  }
+
+  .empty-state .icon-lg {
+    font-size: 40px;
+    margin-bottom: 12px;
+    display: block;
+    opacity: 0.3;
+  }
+
+  .empty-state p { font-size: 14px; line-height: 1.7; }
+
+  .spinner {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border: 1.5px solid var(--accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-left">
+      <h1>Gym Progress</h1>
+      <p>Synced from your Notion Workout Log</p>
+    </div>
+    <button class="sync-btn" id="syncBtn" onclick="loadFromNotion()">
+      <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
+      </svg>
+      Sync from Notion
+    </button>
+  </div>
+
+  <div class="status-bar" id="status">
+    <span class="dot"></span>
+    <span>Ready — click Sync to load your workout logs</span>
+  </div>
+
+  <div id="metrics" class="metrics hidden">
+    <div class="metric">
+      <div class="metric-label">Sessions</div>
+      <div class="metric-value" id="m-sessions">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Exercises</div>
+      <div class="metric-value" id="m-exercises">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">PRs set</div>
+      <div class="metric-value" id="m-prs">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Latest session</div>
+      <div class="metric-value small" id="m-latest">—</div>
+    </div>
+  </div>
+
+  <div id="chart-section" class="hidden">
+    <div class="section-label">Progress by exercise</div>
+    <div class="tabs" id="tabs"></div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title" id="chart-title">—</div>
+          <div class="chart-subtitle" id="chart-subtitle">Weight over time</div>
+        </div>
+        <span class="pr-tag hidden" id="pr-tag">PR tracker</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart" role="img" aria-label="Weight lifted over time for selected exercise"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div id="log-section" class="hidden">
+    <div class="section-label">Recent sessions</div>
+    <div class="log-grid" id="log-grid"></div>
+  </div>
+
+  <div id="empty-state" class="empty-state">
+    <span class="icon-lg">🏋️</span>
+    <p>No data yet.<br>Sync your Notion Workout Log to see progress charts.</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+let allData = {};
+let chartInstance = null;
+let activeExercise = null;
+
+const PRIORITY = ['Hex bar deadlift','Low bar squat','Bench press','Dumbbell shoulder press','Hip thrust'];
+const COLORS = ['#378ADD','#1D9E75','#D85A30','#7F77DD','#BA7517'];
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.className = 'status-bar' + (type ? ' ' + type : '');
+  el.innerHTML = type === 'loading'
+    ? `<span class="spinner"></span><span>${msg}</span>`
+    : `<span class="dot"></span><span>${msg}</span>`;
+}
+
+async function loadFromNotion() {
+  const btn = document.getElementById('syncBtn');
+  btn.disabled = true;
+  setStatus('Connecting to Notion…', 'loading');
+  document.getElementById('empty-state').classList.remove('hidden');
+  document.getElementById('metrics').classList.add('hidden');
+  document.getElementById('chart-section').classList.add('hidden');
+  document.getElementById('log-section').classList.add('hidden');
+
+  try {
+    const systemPrompt = `You are a data extraction assistant with access to Notion MCP tools.
+
+Your job:
+1. Search for all workout session pages inside the "Workout Log" page which is a child of Gym Program page id 3448c040-1da7-8153-9df3-f44177dd50b5
+2. Fetch each session page and extract ALL exercise table rows
+3. For each row extract: exercise name, weight (number only, no "lb"), sets, reps, and date from page title
+
+Return ONLY a JSON object with no markdown fences, preamble, or explanation:
+{
+  "sessions": [
+    {
+      "date": "2026-04-16",
+      "day": "A",
+      "exercises": [
+        { "name": "Bench press", "weight": 95, "sets": 4, "reps": 8 }
+      ]
+    }
+  ]
+}
+
+Rules:
+- weight must be a number (null if bodyweight or no weight listed)
+- Skip warmup cardio (stationary bike, rowing machine) and bodyweight-only entries
+- If weight cell is empty set weight to null
+- date format: YYYY-MM-DD parsed from page title
+- Return ONLY valid JSON, nothing else`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: 'Search the Workout Log page (child of Gym Program page id: 3448c040-1da7-8153-9df3-f44177dd50b5) for all workout session pages. Fetch each one and return the JSON.' }],
+        mcp_servers: [{ type: 'url', url: 'https://mcp.notion.com/mcp', name: 'notion-mcp' }]
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || 'API error');
+
+    const textBlocks = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+    const jsonMatch = textBlocks.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No structured data found in response');
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!parsed.sessions || parsed.sessions.length === 0) {
+      setStatus('No sessions found. Log some workouts in Notion first.', 'error');
+      btn.disabled = false;
+      return;
+    }
+
+    processData(parsed.sessions);
+    setStatus(`Synced ${parsed.sessions.length} session${parsed.sessions.length !== 1 ? 's' : ''} from Notion`, 'success');
+
+  } catch(e) {
+    setStatus('Error: ' + e.message, 'error');
+    console.error(e);
+  }
+
+  btn.disabled = false;
+}
+
+function processData(sessions) {
+  allData = {};
+  let prCount = 0;
+  let latestDate = '';
+
+  sessions.sort((a,b) => a.date.localeCompare(b.date));
+
+  for (const s of sessions) {
+    if (s.date > latestDate) latestDate = s.date;
+    for (const ex of s.exercises) {
+      if (ex.weight === null) continue;
+      if (!allData[ex.name]) allData[ex.name] = [];
+      allData[ex.name].push({ date: s.date, weight: ex.weight, sets: ex.sets, reps: ex.reps });
+    }
+  }
+
+  for (const name of Object.keys(allData)) {
+    let max = 0;
+    for (const pt of allData[name]) {
+      if (pt.weight > max) { max = pt.weight; prCount++; }
+    }
+  }
+
+  document.getElementById('m-sessions').textContent = sessions.length;
+  document.getElementById('m-exercises').textContent = Object.keys(allData).length;
+  document.getElementById('m-prs').textContent = prCount;
+  document.getElementById('m-latest').textContent = latestDate ? formatDate(latestDate) : '—';
+  document.getElementById('metrics').classList.remove('hidden');
+
+  buildTabs();
+  buildLogList(sessions);
+  document.getElementById('chart-section').classList.remove('hidden');
+  document.getElementById('log-section').classList.remove('hidden');
+  document.getElementById('empty-state').classList.add('hidden');
+}
+
+function buildTabs() {
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = '';
+  const names = Object.keys(allData);
+  const ordered = [...PRIORITY.filter(p => names.includes(p)), ...names.filter(n => !PRIORITY.includes(n))];
+
+  ordered.forEach((name, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (i === 0 ? ' active' : '');
+    btn.textContent = name;
+    btn.onclick = () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      activeExercise = name;
+      renderChart(name);
+    };
+    tabs.appendChild(btn);
+  });
+
+  if (ordered.length > 0) {
+    activeExercise = ordered[0];
+    renderChart(ordered[0]);
+  }
+}
+
+function renderChart(name) {
+  const points = allData[name] || [];
+  const labels = points.map(p => formatDate(p.date));
+  const values = points.map(p => p.weight);
+
+  const colorIdx = PRIORITY.indexOf(name);
+  const color = colorIdx >= 0 ? COLORS[colorIdx] : '#888780';
+
+  document.getElementById('chart-title').textContent = name;
+
+  const maxW = Math.max(...values);
+  const firstW = values[0];
+  const gain = maxW - firstW;
+  document.getElementById('chart-subtitle').textContent =
+    gain > 0 ? `+${gain} lb from first session · Peak: ${maxW} lb` : `Current: ${maxW} lb`;
+
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(document.getElementById('chart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: name,
+        data: values,
+        borderColor: color,
+        backgroundColor: color + '18',
+        borderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointBackgroundColor: color,
+        pointBorderColor: '#0e0e0f',
+        pointBorderWidth: 2,
+        fill: true,
+        tension: 0.35
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#202022',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleColor: '#f0efe8',
+          bodyColor: '#888780',
+          padding: 10,
+          callbacks: {
+            label: ctx => {
+              const pt = points[ctx.dataIndex];
+              return ` ${ctx.parsed.y} lb  ·  ${pt?.sets}×${pt?.reps}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#888780', font: { size: 11, family: 'DM Mono' }, autoSkip: false, maxRotation: 45 },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          border: { color: 'rgba(255,255,255,0.06)' }
+        },
+        y: {
+          ticks: { color: '#888780', font: { size: 11, family: 'DM Mono' }, callback: v => v + ' lb' },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          border: { color: 'rgba(255,255,255,0.06)' }
+        }
+      }
+    }
+  });
+}
+
+function buildLogList(sessions) {
+  const grid = document.getElementById('log-grid');
+  grid.innerHTML = '';
+  const recent = [...sessions].reverse().slice(0, 8);
+
+  const dayColors = { A: '#378ADD', B: '#1D9E75', C: '#D85A30', D: '#7F77DD' };
+  const dayLabels = { A: 'Push', B: 'Posterior', C: 'Squat + Pull', D: 'Recovery' };
+
+  for (const s of recent) {
+    const exCount = s.exercises.filter(e => e.weight !== null).length;
+    const c = dayColors[s.day] || '#888780';
+    const div = document.createElement('div');
+    div.className = 'log-card';
+    div.innerHTML = `
+      <div class="log-card-top">
+        <div class="log-card-title">Day ${s.day} — ${formatDate(s.date)}</div>
+        <span class="day-badge" style="color:${c};border-color:${c}30;background:${c}12">${dayLabels[s.day] || 'Day '+s.day}</span>
+      </div>
+      <div class="log-card-sub">${exCount} exercise${exCount !== 1 ? 's' : ''} logged</div>`;
+    grid.appendChild(div);
+  }
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  const [y,m,day] = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[parseInt(m)-1]} ${parseInt(day)}`;
+}
+</script>
+</body>
+</html>
